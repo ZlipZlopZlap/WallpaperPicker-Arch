@@ -10,6 +10,7 @@ An Arch config for the wallpaper picker designed by ilyamiro
 # Notes
 - Thumbnails are cached in `~/cache/wallpaper_picker/`
 - Save wallpapers to ~/Images/Wallpapers
+- Put build-thumbs.sh in ~/wallpaper-pick/hypr/Scripts/
 
 # Extras
 - Added keyboard navigation to move left "A" & right "D" 
