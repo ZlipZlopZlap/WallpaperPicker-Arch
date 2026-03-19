@@ -7,10 +7,10 @@ import Quickshell.Io
 Item {
     id: window
 
-    readonly property string srcDir: Quickshell.env("HOME") + "/Images/Wallpapers"
+    readonly property string srcDir: Quickshell.env("HOME") + "/Image/Wallpapers"
     readonly property string thumbDir: "file://" + Quickshell.env("HOME") + "/.cache/wallpaper_picker/thumbs"
     readonly property var transitions: ["grow", "outer", "any", "wipe", "wave", "center"]
-    readonly property string targetOutput: Quickshell.env("QS_TARGET_OUTPUT") || "DP-1"
+    readonly property string targetOutput: Quickshell.env("QS_TARGET_OUTPUT") || "DP-1" //need to check your monitor
     readonly property int itemWidth: 300
     readonly property int itemHeight: 420
     readonly property int borderWidth: 3
@@ -51,34 +51,44 @@ Item {
     }
 
 	function pickWallpaper(fileName) {
-    	const fullPath = window.srcDir + "/" + fileName;
-    	const output = window.targetOutput && window.targetOutput !== "" ? window.targetOutput : "DP-1";
+        let cleanName = fileName.replace(/^file:\/\//, '');
+        const fullPath = window.srcDir + "/" + cleanName;
+        const output = window.targetOutput;
+        const useMatugen = Quickshell.env("WALLPICKER_MATUGEN") === "1";
 
-    	if (isVideoFile(fileName)) {
-        	const cmd =
-            	"pkill mpvpaper; " +
-            	"mpvpaper -o 'loop --hwdec=auto --no-audio' " +
-            	shellQuote(output) + " " +
-            	shellQuote(fullPath);
-        	Quickshell.execDetached(["bash", "-c", cmd]);
-    	} else {
-        	const randomTransition = window.transitions[Math.floor(Math.random() * window.transitions.length)];
-        	const cmd =
-            	"pgrep -x swww-daemon >/dev/null || swww-daemon & " +
-            	"sleep 0.2; " +
-            	"swww img -o " + shellQuote(output) + " " +
-            	shellQuote(fullPath) + " " +
-            	"--transition-type " + randomTransition + " " +
-            	"--transition-pos 0.5,0.5 " +
-            	"--transition-fps 144 " +
-            	"--transition-duration 1";
-        	Quickshell.execDetached(["bash", "-c", cmd]);
-    	}
+        const cacheFile = Quickshell.env("HOME") + "/.config/hypr/extra/current-wallpaper";
 
-    	Qt.quit();
-	}
+        //add matugen
+        if (isVideoFile(fileName)) {
+            const cmd = "pkill mpvpaper; " +
+                        "mpvpaper -o 'loop --hwdec=auto --no-audio' " +
+                        shellQuote(output) + " " +
+                        shellQuote(fullPath);
+            Quickshell.execDetached(["bash", "-c", cmd]);
+        } else {
+            const randomTransition = window.transitions[Math.floor(Math.random() * window.transitions.length)];
 
-    
+            let cmd = "pgrep -x swww-daemon >/dev/null || swww-daemon & sleep 0.2; ";
+            cmd += `swww img -o ${shellQuote(output)} ${shellQuote(fullPath)} ` +
+                   `--transition-type ${randomTransition} ` +
+                   `--transition-pos 0.5,0.5 ` +
+                   `--transition-fps 144 ` +
+                   `--transition-duration 1`;
+
+            cmd += `; echo ${shellQuote(fullPath)} > ${shellQuote(cacheFile)}`;
+
+            if (useMatugen) {
+                cmd += `; if command -v matugen >/dev/null 2>&1; then ` +
+                       `matugen image ${shellQuote(fullPath)}; ` +
+                       `else notify-send "Wallpicker" "matugen not found"; fi`;
+            }
+            cmd += `; notify-send "Обои" "$(basename ${shellQuote(fullPath)})"`;
+
+            Quickshell.execDetached(["bash", "-c", cmd]);
+        }
+
+        Qt.quit();
+    }
 
     Process {
         id: currentWall
